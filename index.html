@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopMaster - Tienda Demo con IA</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #007BFF;
+            --success: #28A745;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8f9fa;
+            transition: all 0.4s ease;
+        }
+        body[data-theme="dark"] {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        body[data-theme="dark"] .navbar {
+            background: linear-gradient(135deg, #0056b3, #003d80) !important;
+        }
+        body[data-theme="dark"] .product-card {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+        body[data-theme="dark"] .modal-content {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+        body[data-theme="dark"] footer {
+            background: #0a0a0a !important;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #007BFF, #0056b3);
+        }
+        .product-card {
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+        .product-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,123,255,0.2);
+        }
+        .modal-content {
+            border-radius: 15px;
+        }
+        .cart-item {
+            border-bottom: 1px solid #eee;
+        }
+        footer {
+            background: #343a40;
+        }
+        .profile-img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 5px solid #007BFF;
+            cursor: pointer;
+            transition: transform 0.3s;
+            object-fit: cover;
+        }
+        .profile-img:hover {
+            transform: scale(1.05);
+        }
+        .theme-toggle {
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: white;
+        }
+        /* Flecha subir al inicio */
+        #backToTop {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.4);
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+        #backToTop:hover {
+            transform: scale(1.1);
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">🛒 ShopMaster</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item me-3">
+                        <i class="fas fa-moon theme-toggle" id="themeToggle"></i>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showCart()"><i class="fas fa-shopping-cart"></i> Carrito (<span id="cart-count">0</span>)</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <div class="row mb-4">
+            <div class="col text-center">
+                <h1 class="display-5 fw-bold text-primary">🛍️ Bienvenido a ShopMaster</h1>
+                <p class="lead">Demostración impulsada por IA - FakeStoreAPI</p>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="d-flex justify-content-center gap-3 mb-4">
+            <button class="btn btn-outline-primary active" onclick="filterCategory('all')">Todos</button>
+            <button class="btn btn-outline-primary" onclick="filterCategory('electronics')">📱 Electrónicos</button>
+        </div>
+
+        <!-- Productos -->
+        <div class="row" id="products-container"></div>
+    </div>
+
+    <!-- Modal Producto -->
+    <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 text-center">
+                            <img id="modalImage" class="img-fluid rounded" style="max-height: 400px;" alt="">
+                        </div>
+                        <div class="col-md-6">
+                            <p id="modalCategory" class="text-muted"></p>
+                            <p id="modalDesc"></p>
+                            <h4 id="modalPrice" class="text-success"></h4>
+                            <div class="input-group mb-3" style="max-width: 150px;">
+                                <button class="btn btn-outline-secondary" onclick="changeQty(-1)">-</button>
+                                <input type="number" id="modalQty" class="form-control text-center" value="1" min="1">
+                                <button class="btn btn-outline-secondary" onclick="changeQty(1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button class="btn btn-success" onclick="addToCartFromModal()">🛒 Agregar al Carrito</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offcanvas Carrito -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="cartOffcanvas">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title">🛒 Tu Carrito</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body" id="cart-items"></div>
+        <div class="offcanvas-footer p-3 border-top">
+            <div class="d-flex justify-content-between mb-3">
+                <strong>Total:</strong>
+                <strong id="cart-total">$0.00</strong>
+            </div>
+            <button class="btn btn-primary w-100" onclick="showPaymentModal()">💳 Proceder al Pago</button>
+        </div>
+    </div>
+
+    <!-- Modal Pago -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">💳 Pasarela de Pago Simulada</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="paymentForm">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre Completo</label>
+                            <input type="text" class="form-control" id="fullName" required value="Samil Luna">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Número de Tarjeta</label>
+                            <input type="text" class="form-control" id="cardNumber" maxlength="16" required value="4242424242424242">
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label">Fecha Venc.</label>
+                                <input type="text" class="form-control" id="expiry" placeholder="MM/YY" maxlength="5" required value="12/28">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">CVC</label>
+                                <input type="text" class="form-control" id="cvc" maxlength="3" required value="123">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-success" onclick="processPayment()">✅ Pagar Ahora</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Profesional -->
+    <footer class="py-5 text-white">
+        <div class="container">
+            <div class="row">
+                <!-- Perfil -->
+                <div class="col-lg-4 text-center text-lg-start mb-4">
+                    <img src="https://i.pinimg.com/736x/94/45/3b/94453b9d25cb53aa56c9fa4a7ce0de2f.jpg"
+                         alt="Samil Luna"
+                         class="profile-img mb-3"
+                         onclick="showProfileModal()">
+                    <h5>Samil Luna</h5>
+                    <p class="small">Estudiante universitario y desarrollador web.<br>Apasionado por la IA, el análisis de datos y el diseño de sistemas educativos.</p>
+                </div>
+
+                <!-- Skills -->
+                <div class="col-lg-4 mb-4">
+                    <h6 class="text-primary mb-3">🛠️ Tecnologías</h6>
+                    <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-lg-start">
+                        <i class="fab fa-html5 fa-2x text-danger" title="HTML"></i>
+                        <i class="fab fa-css3-alt fa-2x text-primary" title="CSS"></i>
+                        <i class="fab fa-js-square fa-2x text-warning" title="JavaScript"></i>
+                        <i class="fab fa-react fa-2x text-info" title="React"></i>
+                        <i class="fab fa-php fa-2x text-purple" title="PHP"></i>
+                        <i class="fas fa-database fa-2x" title="SQL"></i>
+                        <i class="fab fa-python fa-2x text-success" title="Python"></i>
+                    </div>
+                </div>
+
+                <!-- Redes -->
+                <div class="col-lg-4 text-center text-lg-end">
+                    <h6 class="text-primary mb-3">🔗 Conéctate</h6>
+                    <div class="d-flex gap-3 justify-content-center justify-content-lg-end flex-wrap">
+                        <a href="#" class="text-white fs-3"><i class="fab fa-youtube"></i></a>
+                        <a href="#" class="text-white fs-3"><i class="fab fa-linkedin"></i></a>
+                        <a href="#" class="text-white fs-3"><i class="fab fa-github"></i></a>
+                        <a href="#" class="text-white fs-3"><i class="fab fa-whatsapp"></i></a>
+                        <a href="#" class="text-white fs-3"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-white fs-3"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="text-white fs-3"><i class="fab fa-x-twitter"></i></a>
+                    </div>
+                    <p class="mt-4 small">Creado por <strong>Samil Luna</strong> con ❤️ + IA</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Botón Subir al Inicio -->
+    <button onclick="scrollToTop()" id="backToTop" title="Subir al inicio">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        let products = [];
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+        // ==================== MODO OSCURO ====================
+        const themeToggle = document.getElementById('themeToggle');
+        function toggleDarkMode() {
+            const body = document.body;
+            const isDark = body.getAttribute('data-theme') === 'dark';
+            body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            themeToggle.classList.toggle('fa-moon', isDark);
+            themeToggle.classList.toggle('fa-sun', !isDark);
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        }
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.setAttribute('data-theme', 'dark');
+            themeToggle.classList.remove('fa-moon');
+            themeToggle.classList.add('fa-sun');
+        }
+        themeToggle.addEventListener('click', toggleDarkMode);
+        // ====================================================
+
+        async function loadProducts() {
+            try {
+                const res = await fetch('https://fakestoreapi.com/products');
+                products = await res.json();
+                renderProducts(products);
+            } catch (e) {
+                console.error(e);
+                document.getElementById('products-container').innerHTML = `<div class="alert alert-danger">Error al cargar productos</div>`;
+            }
+        }
+
+        function renderProducts(filteredProducts) {
+            const container = document.getElementById('products-container');
+            container.innerHTML = filteredProducts.map(p => `
+                <div class="col-md-4 col-lg-3 mb-4">
+                    <div class="card product-card h-100">
+                        <img src="${p.image}" class="card-img-top p-3" style="height: 200px; object-fit: contain;" alt="${p.title}">
+                        <div class="card-body d-flex flex-column">
+                            <h6 class="card-title">${p.title.substring(0, 45)}...</h6>
+                            <p class="text-success fw-bold">$${p.price}</p>
+                            <button class="btn btn-outline-primary mt-auto" onclick="showProductModal(${p.id})">Ver más</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterCategory(category) {
+            document.querySelectorAll('.btn-outline-primary').forEach(btn => btn.classList.remove('active'));
+            
+            if (category === 'all') {
+                renderProducts(products);
+            } else if (category === 'electronics') {
+                const electronics = products.filter(p => p.category === 'electronics');
+                renderProducts(electronics);
+            }
+            event.target.classList.add('active');
+        }
+
+        let currentProduct = null;
+        function showProductModal(id) {
+            currentProduct = products.find(p => p.id === id);
+            if (!currentProduct) return;
+           
+            document.getElementById('modalTitle').textContent = currentProduct.title;
+            document.getElementById('modalImage').src = currentProduct.image;
+            document.getElementById('modalCategory').textContent = `Categoría: ${currentProduct.category}`;
+            document.getElementById('modalDesc').textContent = currentProduct.description;
+            document.getElementById('modalPrice').innerHTML = `$${currentProduct.price} <small class="text-muted">USD</small>`;
+            document.getElementById('modalQty').value = 1;
+           
+            new bootstrap.Modal(document.getElementById('productModal')).show();
+        }
+
+        function changeQty(delta) {
+            const qtyInput = document.getElementById('modalQty');
+            let qty = parseInt(qtyInput.value);
+            qty = Math.max(1, qty + delta);
+            qtyInput.value = qty;
+        }
+
+        function addToCartFromModal() {
+            if (!currentProduct) return;
+            const qty = parseInt(document.getElementById('modalQty').value);
+            addToCart(currentProduct, qty);
+            bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+        }
+
+        function addToCart(product, qty = 1) {
+            const existing = cart.find(item => item.id === product.id);
+            if (existing) {
+                existing.quantity += qty;
+            } else {
+                cart.push({...product, quantity: qty});
+            }
+            saveCart();
+            updateCartCount();
+            alert(`✅ ${qty} x ${product.title.substring(0,30)} agregado al carrito`);
+        }
+
+        function saveCart() {
+            localStorage.setItem('cart', JSON.stringify(cart));
+        }
+
+        function updateCartCount() {
+            document.getElementById('cart-count').textContent = cart.reduce((a, b) => a + b.quantity, 0);
+        }
+
+        function showCart() {
+            const container = document.getElementById('cart-items');
+            if (cart.length === 0) {
+                container.innerHTML = `<p class="text-center text-muted">El carrito está vacío</p>`;
+                document.getElementById('cart-total').textContent = '$0.00';
+                new bootstrap.Offcanvas(document.getElementById('cartOffcanvas')).show();
+                return;
+            }
+
+            let html = '';
+            let total = 0;
+
+            cart.forEach((item, index) => {
+                const subtotal = item.price * item.quantity;
+                total += subtotal;
+                html += `
+                    <div class="cart-item pb-3 mb-3">
+                        <div class="d-flex">
+                            <img src="${item.image}" width="60" height="60" class="me-3" style="object-fit:contain">
+                            <div class="flex-grow-1">
+                                <h6>${item.title.substring(0,40)}...</h6>
+                                <small class="text-muted">$${item.price} x ${item.quantity}</small>
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="changeCartQty(${index}, -1)">-</button>
+                                    <span class="mx-2">${item.quantity}</span>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="changeCartQty(${index}, 1)">+</button>
+                                    <button class="btn btn-sm btn-outline-danger ms-3" onclick="removeFromCart(${index})"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <strong>$${subtotal.toFixed(2)}</strong>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            document.getElementById('cart-total').textContent = `$${total.toFixed(2)}`;
+            new bootstrap.Offcanvas(document.getElementById('cartOffcanvas')).show();
+        }
+
+        function changeCartQty(index, delta) {
+            cart[index].quantity += delta;
+            if (cart[index].quantity < 1) cart.splice(index, 1);
+            saveCart();
+            showCart();
+            updateCartCount();
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            saveCart();
+            showCart();
+            updateCartCount();
+        }
+
+        function showPaymentModal() {
+            if (cart.length === 0) return alert("El carrito está vacío");
+            bootstrap.Offcanvas.getInstance(document.getElementById('cartOffcanvas')).hide();
+            new bootstrap.Modal(document.getElementById('paymentModal')).show();
+        }
+
+        function processPayment() {
+            const name = document.getElementById('fullName').value;
+            if (!name) return alert("Ingresa tu nombre");
+           
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+                generateReceiptPDF(name);
+                cart = [];
+                saveCart();
+                updateCartCount();
+            }, 800);
+        }
+
+        function generateReceiptPDF(clientName) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [80, 250]
+            });
+
+            let y = 10;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("SHOPMASTER", 40, y, { align: "center" });
+            y += 8;
+           
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text("Demo IA - Tienda Virtual", 40, y, { align: "center" });
+            y += 6;
+            doc.text(`Fecha: ${new Date().toLocaleString()}`, 40, y, { align: "center" });
+            y += 6;
+            doc.text(`Cliente: ${clientName}`, 40, y, { align: "center" });
+            y += 10;
+
+            doc.text("--------------------------------", 40, y, { align: "center" });
+            y += 6;
+
+            let total = 0;
+            cart.forEach(item => {
+                const lineTotal = item.price * item.quantity;
+                total += lineTotal;
+                doc.text(`${item.title.substring(0, 25)}`, 5, y);
+                y += 5;
+                doc.text(`${item.quantity} x $${item.price} = $${lineTotal.toFixed(2)}`, 5, y);
+                y += 6;
+            });
+
+            doc.text("--------------------------------", 40, y, { align: "center" });
+            y += 8;
+            doc.setFontSize(12);
+            doc.text(`TOTAL: $${total.toFixed(2)}`, 40, y, { align: "center" });
+            y += 10;
+
+            doc.setFontSize(9);
+            doc.text("¡Gracias por tu compra!", 40, y, { align: "center" });
+            y += 6;
+            doc.text("Creado con IA + FakeStoreAPI", 40, y, { align: "center" });
+
+            doc.save(`Ticket_ShopMaster_${Date.now()}.pdf`);
+            alert("✅ Ticket generado y descargado. ¡Listo para imprimir!");
+        }
+
+        function showProfileModal() {
+            alert("Samil Luna\nEstudiante y Desarrollador Web\nApasionado por IA y Educación");
+        }
+
+        // Flecha Subir al Inicio
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.onscroll = function() {
+            const btn = document.getElementById('backToTop');
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                btn.style.display = "flex";
+            } else {
+                btn.style.display = "none";
+            }
+        };
+
+        window.onload = () => {
+            loadProducts();
+            updateCartCount();
+        };
+    </script>
+</body>
+</html>
